@@ -1,4 +1,5 @@
 <template>
+
   <div class="wrapper">
     <nav class="main-header navbar navbar-expand navbar-white navbar-light">
       <ul class="navbar-nav">
@@ -30,9 +31,29 @@
       <section class="content">
         <div class="container-fluid">
           <div class="row">
-            <div class="card card-primary">
-              <div class="card-body p-0">
-                <div id="calendar"></div>
+            <div class="col-md-3">
+              <div class="sticky-top mb-3">
+                <div class="card">
+                  <div class="card-header">
+                    <h3 class="card-title">Создать задачу</h3>
+                  </div>
+                  <div class="card-body">
+                      <input id="new-event-title" type="text" class="form-control" placeholder="Название события">
+                      <textarea id="new-event-description" class="form-control mt-2" placeholder="Описание события"></textArea>
+                      <input id="new-event-data" type="date" class="form-control mt-2" placeholder="Дата начала">
+                      <label>Дата события</label>
+                      <input id="new-event-dead-line" type="date" class="form-control mt-2" placeholder="Конечный срок">
+                      <label>Крайний срок</label>
+                      <button id="add-new-event" type="button" class="btn btn-primary mt-2">Добавить событие</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-9">
+              <div class="card card-primary">
+                <div class="card-body p-0">
+                  <div id="calendar"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -40,55 +61,139 @@
       </section>
     </div>
   </div>
+  <Popup v-if="popupTrigger.buttonTrigger"
+         :TogglePopup ="() => TogglePopup('buttonTrigger')">
+    <h2>{{ popupTrigger.title}}</h2>
+    <p>{{ popupTrigger.description }}</p>
+    <button class="btn btn-primary" @click="TaskDone(popupTrigger.id)">Выполнено</button>
+  </Popup>
 </template>
 
 <script>
 import {Cookie} from "@/assets/Cookie.js";
+import axios from "axios";
+import Popup from "@/components/Popup.vue";
+import {ref} from "vue";
 
 const user_name = Cookie.getCookie('user_name')
 const user_email = Cookie.getCookie('user_email')
 const group_name = Cookie.getCookie('group_name')
 
+
 export default {
+  components: {Popup},
+  setup (){
+    const popupTrigger = ref({
+      buttonTrigger: false,
+      title: '',
+      description: '',
+      id: ''
+    })
+    
+    function TogglePopup (trigger, title, description, id) {
+      popupTrigger.value[trigger] = !popupTrigger.value[trigger]
+      popupTrigger.value.title = title
+      popupTrigger.value.description = description
+      popupTrigger.value.id = id
+    }
+
+    function TaskDone(id) {
+      axios.post('http://localhost/api/tasks/' + id, {'status_id': 2})
+    }
+
+    return {
+      Popup,
+      popupTrigger,
+      TogglePopup,
+      TaskDone
+    }
+  },
   data() {
     return {
       user_name: 'Test Testovich Name',
       user_email: 'example@mail.ru',
       group_name: 'Group_name',
+      group_id: this.$route.params.group_id,
     }
   },
   mounted() {
-    this.getTasks(this.$route.params.group_id)
+    this.getTasks(this.group_id, this.TogglePopup)
   },
   methods: {
-    getTasks(url) {
+    getTasks(url, popup) {
       this.axios.get('http://localhost/api/tasks/' + url)
           .then(res => {
-            console.log(res.data.data)
             $(function () {
-              let date = new Date()
-              let d    = date.getDate(),
-                  m    = date.getMonth(),
-                  y    = date.getFullYear()
-
+              function postTask(task, url) {
+                axios.post('http://localhost/api/tasks/' + url, task)
+                    .then(res => {
+                      calendar.addEvent({
+                        id: res.data,
+                        title: valTitle,
+                        description: valDescription,
+                        start: valData,
+                        dead_line: valDead,
+                        backgroundColor: currColor,
+                        borderColor: currColor,
+                        allDay: true
+                      })
+                    })
+              }
               let Calendar = FullCalendar.Calendar;
               let calendarEl = document.getElementById('calendar');
-
               let calendar = new Calendar(calendarEl, {
                 locale: 'ru',
                 headerToolbar: {
                   left  : 'prev,next today',
                   center: 'title',
-                  right : 'dayGridMonth,timeGridWeek,timeGridDay'
+                  right: ''
                 },
                 themeSystem: 'bootstrap',
                 events: res.data.data,
                 eventClick: function(info) {
-                  alert('Описание события: ' + info.event._def.extendedProps.description);
+                  console.log(info.event);
+                  popup('buttonTrigger', info.event._def.title, info.event._def.extendedProps.description, info.event._def.publicId)
+                },
+                editable  : true,
+                droppable : true,
+                eventDrop: function(info) {
+                  if (!confirm("Вы уверены что хотите перенести событие?")) {
+                    info.revert();
+                  } else {
+                    axios.patch('http://localhost/api/tasks/' + info.event.id, {
+                      start: (info.event.start).toISOString()
+                    })
+                  }
                 }
               });
 
               calendar.render();
+
+              let valTitle
+              let valDescription
+              let valData
+              let valDead
+              let currColor = '#3c8dbc'
+              $('#add-new-event').click(function (e) {
+                e.preventDefault()
+                valTitle = $('#new-event-title').val()
+                valDescription = $('#new-event-description').val()
+                valData = $('#new-event-data').val()
+                valDead = $('#new-event-dead-line').val()
+                if (valTitle.length == 0 || valDescription.length == 0 || valData.length == 0 || valDead.length == 0) {
+                  return
+                }
+                postTask({
+                  title: valTitle,
+                  description: valDescription,
+                  start: valData,
+                  dead_line: valDead,
+                }, url)
+                $('#new-event-title').val('')
+                $('#new-event-description').val('')
+                $('#new-event-data').val('')
+                $('#new-event-dead-line').val('')
+              })
             })
           })
     }

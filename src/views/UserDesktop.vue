@@ -40,16 +40,43 @@
       </section>
     </div>
   </div>
+  <Popup v-if="popupTrigger.buttonTrigger"
+         :TogglePopup ="() => TogglePopup('buttonTrigger')">
+    <h2>{{ popupTrigger.title}}</h2>
+    <p>{{ popupTrigger.description }}</p>
+  </Popup>
 </template>
 
 <script>
   import {Cookie} from "@/assets/Cookie.js";
+  import Popup from "@/components/Popup.vue";
+  import {ref} from "vue";
 
   const user_name = Cookie.getCookie('user_name')
   const user_email = Cookie.getCookie('user_email')
   const group_name = Cookie.getCookie('group_name')
 
   export default {
+    components: {Popup},
+    setup (){
+      const popupTrigger = ref({
+        buttonTrigger: false,
+        title: '',
+        description: ''
+      })
+
+      function TogglePopup (trigger, title, description) {
+        popupTrigger.value[trigger] = !popupTrigger.value[trigger]
+        popupTrigger.value.title = title
+        popupTrigger.value.description = description
+      }
+
+      return {
+        Popup,
+        popupTrigger,
+        TogglePopup
+      }
+    },
     data() {
       return {
         user_name: 'Test Testovich Name',
@@ -58,34 +85,29 @@
       }
     },
     mounted() {
-      this.getTasks(this.$route.params.group_id)
+      this.getTasks(this.$route.params.group_id, this.TogglePopup)
     },
     methods: {
-      getTasks(url) {
+      getTasks(url, popup) {
         this.axios.get('http://localhost/api/tasks/' + url)
             .then(res => {
-              console.log(res.data.data)
               $(function () {
-                let date = new Date()
-                let d    = date.getDate(),
-                    m    = date.getMonth(),
-                    y    = date.getFullYear()
 
                 let Calendar = FullCalendar.Calendar;
                 let calendarEl = document.getElementById('calendar');
-
                 let calendar = new Calendar(calendarEl, {
                   locale: 'ru',
                   headerToolbar: {
                     left  : 'prev,next today',
                     center: 'title',
-                    right : 'dayGridMonth,timeGridWeek,timeGridDay'
+                    right : ''
                   },
                   themeSystem: 'bootstrap',
                   events: res.data.data,
                   eventClick: function(info) {
-                    alert('Описание события: ' + info.event._def.extendedProps.description);
-                  }
+                    console.log(info.event._def.title);
+                    popup('buttonTrigger', info.event._def.title, info.event._def.extendedProps.description)
+                  },
                 });
 
                 calendar.render();
