@@ -44,6 +44,7 @@
          :TogglePopup ="() => TogglePopup('buttonTrigger')">
     <h2>{{ popupTrigger.title}}</h2>
     <p>{{ popupTrigger.description }}</p>
+    <button class="btn btn-primary" @click="TaskDone(popupTrigger.id)">Выполнено</button>
   </Popup>
 </template>
 
@@ -51,6 +52,7 @@
   import {Cookie} from "@/assets/Cookie.js";
   import Popup from "@/components/Popup.vue";
   import {ref} from "vue";
+  import axios from "axios";
 
   const user_name = Cookie.getCookie('user_name')
   const user_email = Cookie.getCookie('user_email')
@@ -62,19 +64,29 @@
       const popupTrigger = ref({
         buttonTrigger: false,
         title: '',
-        description: ''
+        description: '',
+        id: ''
       })
 
-      function TogglePopup (trigger, title, description) {
+      function TogglePopup (trigger, title, description, id) {
         popupTrigger.value[trigger] = !popupTrigger.value[trigger]
         popupTrigger.value.title = title
         popupTrigger.value.description = description
+        popupTrigger.value.id = id
+      }
+
+      function TaskDone(id) {
+        axios.post('http://localhost/api/tasks/done/' + id)
+            .then(() => {
+              location.reload()
+            })
       }
 
       return {
         Popup,
         popupTrigger,
-        TogglePopup
+        TogglePopup,
+        TaskDone,
       }
     },
     data() {
@@ -106,7 +118,7 @@
                   events: res.data.data,
                   eventClick: function(info) {
                     console.log(info.event._def.title);
-                    popup('buttonTrigger', info.event._def.title, info.event._def.extendedProps.description)
+                    popup('buttonTrigger', info.event._def.title, info.event._def.extendedProps.description, info.event._def.publicId)
                   },
                 });
 

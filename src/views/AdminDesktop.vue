@@ -66,6 +66,7 @@
     <h2>{{ popupTrigger.title}}</h2>
     <p>{{ popupTrigger.description }}</p>
     <button class="btn btn-primary" @click="TaskDone(popupTrigger.id)">Выполнено</button>
+    <button class="btn btn-danger" @click="TaskDelete(popupTrigger.id)">Удалить событие</button>
   </Popup>
 </template>
 
@@ -98,14 +99,24 @@ export default {
     }
 
     function TaskDone(id) {
-      axios.post('http://localhost/api/tasks/' + id, {'status_id': 2})
+      axios.post('http://localhost/api/tasks/done/' + id)
+          .then(() => {
+            location.reload()
+      })
+    }
+    function TaskDelete(id) {
+      axios.delete('http://localhost/api/tasks/' + id)
+          .then(() => {
+            location.reload()
+          })
     }
 
     return {
       Popup,
       popupTrigger,
       TogglePopup,
-      TaskDone
+      TaskDone,
+      TaskDelete
     }
   },
   data() {
@@ -123,6 +134,7 @@ export default {
     getTasks(url, popup) {
       this.axios.get('http://localhost/api/tasks/' + url)
           .then(res => {
+            console.log(res)
             $(function () {
               function postTask(task, url) {
                 axios.post('http://localhost/api/tasks/' + url, task)
@@ -132,7 +144,7 @@ export default {
                         title: valTitle,
                         description: valDescription,
                         start: valData,
-                        dead_line: valDead,
+                        end: valDead,
                         backgroundColor: currColor,
                         borderColor: currColor,
                         allDay: true
@@ -151,35 +163,53 @@ export default {
                 themeSystem: 'bootstrap',
                 events: res.data.data,
                 eventClick: function(info) {
-                  console.log(info.event);
+                  console.log(info);
                   popup('buttonTrigger', info.event._def.title, info.event._def.extendedProps.description, info.event._def.publicId)
                 },
                 editable  : true,
                 droppable : true,
                 eventDrop: function(info) {
+                  console.log(info)
                   if (!confirm("Вы уверены что хотите перенести событие?")) {
                     info.revert();
                   } else {
                     axios.patch('http://localhost/api/tasks/' + info.event.id, {
-                      start: (info.event.start).toISOString()
+                      start: info.event.start,
+                      end: info.event.end
                     })
                   }
-                }
+                },
+                eventResize: function(info) {
+                  if (!confirm("Вы уверены что хотите сдвинуть крайний срок события?")) {
+                    info.revert();
+                  } else {
+                      axios.patch('http://localhost/api/tasks/' + info.event.id, {
+                        start: info.event.start,
+                        end: info.event.end
+                     })
+                  }
+                },
               });
-
               calendar.render();
+
+              window.cal = {
+                calendar: calendar
+              }
 
               let valTitle
               let valDescription
               let valData
               let valDead
-              let currColor = '#3c8dbc'
+              let currColor = 'blue'
               $('#add-new-event').click(function (e) {
                 e.preventDefault()
                 valTitle = $('#new-event-title').val()
                 valDescription = $('#new-event-description').val()
                 valData = $('#new-event-data').val()
                 valDead = $('#new-event-dead-line').val()
+                valDead = new Date(valDead)
+                valDead.setDate(valDead.getDate() + 1)
+                console.log(valDead)
                 if (valTitle.length == 0 || valDescription.length == 0 || valData.length == 0 || valDead.length == 0) {
                   return
                 }
@@ -187,7 +217,7 @@ export default {
                   title: valTitle,
                   description: valDescription,
                   start: valData,
-                  dead_line: valDead,
+                  end: valDead,
                 }, url)
                 $('#new-event-title').val('')
                 $('#new-event-description').val('')
@@ -198,7 +228,7 @@ export default {
           })
     }
   },
-  name: "UserDesktop",
+  name: "AdminDesktop",
 }
 
 

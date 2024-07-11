@@ -3,7 +3,8 @@
   <div class="popup">
     <div class="popup-inner">
       <slot />
-      <button class="popup-close" @click="TogglePopup()">Закрыть</button>
+      <br>
+      <button class="popup-close mt-2" @click="TogglePopup()">Закрыть</button>
     </div>
   </div>
 </template>
