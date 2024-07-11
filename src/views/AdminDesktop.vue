@@ -38,13 +38,13 @@
                     <h3 class="card-title">Создать задачу</h3>
                   </div>
                   <div class="card-body">
-                      <input id="new-event-title" type="text" class="form-control" placeholder="Название события">
-                      <textarea id="new-event-description" class="form-control mt-2" placeholder="Описание события"></textArea>
-                      <input id="new-event-data" type="date" class="form-control mt-2" placeholder="Дата начала">
-                      <label>Дата события</label>
-                      <input id="new-event-dead-line" type="date" class="form-control mt-2" placeholder="Конечный срок">
-                      <label>Крайний срок</label>
-                      <button id="add-new-event" type="button" class="btn btn-primary mt-2">Добавить событие</button>
+                    <input id="new-event-title" type="text" class="form-control" placeholder="Название события">
+                    <textarea id="new-event-description" class="form-control mt-2" placeholder="Описание события"></textArea>
+                    <input id="new-event-data" type="date" class="form-control mt-2" placeholder="Дата начала">
+                    <label>Дата события</label>
+                    <input id="new-event-dead-line" type="date" class="form-control mt-2" placeholder="Конечный срок">
+                    <label>Крайний срок</label>
+                    <button id="add-new-event" type="button" class="btn btn-primary mt-2">Добавить событие</button>
                   </div>
                 </div>
               </div>
@@ -57,6 +57,42 @@
               </div>
             </div>
           </div>
+        </div>
+      </section>
+      <section class="content">
+        <div class="container-fluid">
+          <div class="row">
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">Управление участниками группы</h3>
+                </div>
+                <div class="card-body">
+                  <table class="table table-bordered">
+                    <thead>
+                    <tr>
+                      <th>Участник</th>
+                      <th>Почта</th>
+                      <th>Статус</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="user in this.users">
+                      <td>{{ user.user_id.name }}</td>
+                      <td>{{ user.user_id.email }}</td>
+                      <td>
+                          <template v-if="user.entered">
+                            <button @click="UserDelete(user.id)" class="btn btn-danger">Удалить пользователя из группы</button>
+                          </template>
+                          <template v-else>
+                            <button @click="UserEnter(user.id)" class="btn btn-primary">Добавить пользователя</button>
+                          </template>
+                      </td>
+                    </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
         </div>
       </section>
     </div>
@@ -110,13 +146,27 @@ export default {
             location.reload()
           })
     }
+    function UserEnter(id) {
+      axios.post('http://localhost/api/users/' + id)
+          .then(() => {
+            location.reload()
+          })
+    }
+    function UserDelete(id) {
+      axios.delete('http://localhost/api/users/' + id)
+          .then(() => {
+            location.reload()
+          })
+    }
 
     return {
       Popup,
       popupTrigger,
       TogglePopup,
       TaskDone,
-      TaskDelete
+      TaskDelete,
+      UserDelete,
+      UserEnter
     }
   },
   data() {
@@ -125,16 +175,23 @@ export default {
       user_email: 'example@mail.ru',
       group_name: 'Group_name',
       group_id: this.$route.params.group_id,
+      users: ref('')
     }
   },
   mounted() {
     this.getTasks(this.group_id, this.TogglePopup)
+    this.getUsers(this.group_id)
   },
   methods: {
+    getUsers(url) {
+      this.axios.get('http://localhost/api/users/' + url)
+          .then(res => {
+            this.users = res.data.data
+          })
+    },
     getTasks(url, popup) {
       this.axios.get('http://localhost/api/tasks/' + url)
           .then(res => {
-            console.log(res)
             $(function () {
               function postTask(task, url) {
                 axios.post('http://localhost/api/tasks/' + url, task)
